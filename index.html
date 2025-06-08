@@ -3,72 +3,446 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>האפליקציה הנוירונית שלי</title>
+    <title>אפליקציית נוירואנטומיה אינטראקטיבית</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .main-viewer {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .controls {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        select, button, input[type="file"] {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, button:hover {
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #viewer-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-card h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
+        }
+
+        .info-card h4 {
+            color: #FFC107;
+            margin: 15px 0 10px 0;
+            font-size: 16px;
+        }
+
+        .info-card p, .info-card li {
+            line-height: 1.6;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-card ul {
+            padding-right: 20px;
+        }
+
+        .hidden-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .upload-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .slice-controls {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .slice-controls h4 {
+            margin-bottom: 10px;
+            color: #FFC107;
+        }
+
+        .slice-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .slice-control input[type="range"] {
+            flex: 1;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             text-align: center;
-            background-color: #f0f8ff;
+            color: #4CAF50;
+            font-size: 18px;
         }
-        h1 {
-            color: #2e8b57;
+
+        .spinner {
+            border: 4px solid rgba(76, 175, 80, 0.3);
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
         }
-        p {
-            color: #4682b4;
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .instruction-card {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.1));
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instruction-card h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            cursor: crosshair;
+        }
+
+        /* Styles for the new "Select Region" dropdown */
+        .select-region-control {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .select-region-control h4 {
+            margin-bottom: 10px;
+            color: #FFC107;
         }
     </style>
 </head>
 <body>
-    <h1>ברוכה הבאה לאפליקציית NeuroApp!</h1>
-    <p>זהו האתר הפשוט הראשון שלי, נפרסם אותו ב-GitHub Pages.</p>
- <!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>האפליקציה הנוירונית שלי</title>
-<style>
-body {
-font-family: Arial, sans-serif;
-margin: 20px;
-text-align: center;
-background-color: #f0f8ff;
-}
-h1 {
-color: #2e8b57;
-}
-p {
-color: #4682b4;
-}
-#neuroTextContent { /* זה המקום שבו הטקסט מ-Neuro_1.txt יוצג /
-white-space: pre-wrap; / שומר על מעברי שורה בטקסט */
-text-align: left;
-max-width: 600px;
-margin: 20px auto;
-padding: 15px;
-border: 1px solid #ddd;
-background-color: #fff;
-box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-</style>
-</head>
-<body>
-<h1>ברוכה הבאה לאפליקציית NeuroApp!</h1>
-<p>תוכן הקובץ Neuro_1.txt:</p>
-<div id="neuroTextContent">טוען תוכן...</div> <script>
-// פונקציה לטעינת תוכן מקובץ טקסט
-async function loadNeuroText() {
-try {
-const response = await fetch('Neuro_1.txt'); // מבקש את הקובץ Neuro_1.txt
-if (!response.ok) {
-throw new Error(HTTP error! status: ${response.status});
-}
-const text = await response.text(); // מקבל את תוכן הקובץ כטקסט
-document.getElementById('neuroTextContent').textContent = text; // מציג את הטקסט באלמנט ה-div
-} catch (error) {
-console.error('Failed to load Neuro_1.txt:', error);
-document.getElementById('neuroTextContent').textContent = 'שגיאה בטעינת תוכן Neuro_1.txt.';
-}
-}</body>
-</html>
+    <div class="container">
+        <div class="main-viewer">
+            <div class="controls">
+                <div class="control-group">
+                    <label>סוג תצוגה:</label>
+                    <select id="viewMode">
+                        <option value="3d">תלת-מימד</option>
+                        <option value="sagittal">חתך סגיטלי</option>
+                        <option value="coronal">חתך קורונלי</option>
+                        <option value="axial">חתך אקסיאלי</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">
+                        העלה תמונת MRI
+                    </button>
+                    <input type="file" id="imageUpload" class="hidden-input" accept="image/*">
+                </div>
+
+                <div class="control-group">
+                    <button onclick="resetView()">איפוס תצוגה</button>
+                    <button onclick="toggleAnimation()">הפסק/התחל סיבוב</button>
+                </div>
+
+                <div class="control-group">
+                    <input type="checkbox" id="toggleBrainOutline" checked>
+                    <label for="toggleBrainOutline">הצג קווי מתאר מוח</label>
+                </div>
+            </div>
+
+            <div id="viewer-container">
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>טוען מודל תלת-מימדי של המוח...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="instruction-card">
+                <h3>הוראות שימוש</h3>
+                <p><strong>לחץ</strong> על אזור במוח לקבלת מידע מפורט</p>
+                <p><strong>גרור</strong> לסיבוב המודל תלת-המימדי</p>
+                <p><strong>גלגל עכבר</strong> לזום פנימה/החוצה</p>
+                <p><strong>שנה מצב תצוגה</strong> לחתכים שונים</p>
+            </div>
+
+            <div class="select-region-control">
+                <h4>בחר/י אזור מוח:</h4>
+                <select id="selectRegionDropdown">
+                    <option value="">בחר/י אזור...</option>
+                    </select>
+            </div>
+
+            <div class="slice-controls" id="sliceControls" style="display: none;">
+                <h4>בקרות חתך</h4>
+                <div class="slice-control">
+                    <label>עומק החתך:</label>
+                    <input type="range" id="sliceDepth" min="0" max="100" value="50">
+                    <span id="sliceValue">50</span>
+                </div>
+            </div>
+
+            <div id="neuroAppTextDisplay" class="info-card">
+                <h3>עדכונים מ-Neuro_1.txt:</h3>
+                <p>טוען תוכן...</p>
+            </div>
+
+            <div id="regionInfo">
+                <div class="info-card">
+                    <h3>ברוכים הבאים לאפליקציית הנוירואנטומיה</h3>
+                    <p>אפליקציה זו מאפשרת לכם לחקור את המוח האנושי בצורה אינטראקטיבית.</p>
+
+                    <h4>תכונות עיקריות:</h4>
+                    <ul>
+                        <li>מודל תלת-מיממדי אינטראקטיבי של המוח</li>
+                        <li>זיהוי אזורים אנטומיים בלחיצה</li>
+                        <li>תצוגת חתכים בכל הכיוונים</li>
+                        <li>העלאת תמונות MRI אישיות</li>
+                        <li>מידע על תפקודים ופגיעות</li>
+                    </ul>
+
+                    <h4>איך להתחיל:</h4>
+                    <p>לחצו על כל אזור במוח כדי לקבל מידע מפורט עליו. השתמשו בבקרות העליונות כדי לשנות את מצב התצוגה או להעלות תמונות אישיות.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Global variables
+        let scene, camera, renderer, brain, raycaster, mouse;
+        let isAnimating = true;
+        let currentViewMode = '3d';
+        let brainRegions = [];
+        let brainOutline; // New variable for the transparent brain outline
+        let currentlyHighlightedRegion = null; // Stores the object currently highlighted
+
+        // Brain anatomy data - Restored to more detailed/applied style, expanded for new regions
+        const brainAnatomyData = {
+            'frontal_cortex': {
+                name: 'קליפת המוח המצחית (Frontal Lobe)',
+                functions: [
+                    'מרכז הפיקוד והשליטה – אחראית על תכנון, קבלת החלטות, פתרון בעיות וביצועים.',
+                    'בקרת תנועה (קליפת המוח המוטורית הראשונית).',
+                    'שפה (אזור ברוקה - הפקת דיבור).',
+                    'זיכרון עבודה ותשומת לב.',
+                    'אישיות והתנהגות חברתית.'
+                ],
+                damage: [
+                    'שינויים קיצוניים באישיות ובהתנהגות (אדישות, אימפולסיביות).',
+                    'קושי בתכנון, ארגון ופתרון בעיות (פגיעה בתפקודים ניהוליים).',
+                    'אפאזיה אקספרסיבית (קושי בהפקת דיבור) אם נפגע אזור ברוקה.',
+                    'שיתוק או חולשה בצד הנגדי של הגוף.',
+                    'קשיי ריכוז וזיכרון עבודה.'
+                ],
+                tips: [
+                    'פעילות גופנית סדירה: משפרת זרימת דם למוח ומחזקת קשרים עצביים.',
+                    'אתגרי חשיבה: פתרון תשבצים, לימוד שפות חדשות או נגינה בכלי.',
+                    'שינה איכותית: חיונית לגיבוש זיכרונות ולחידוש תאי מוח.',
+                    'ניהול מתחים: מדיטציה, יוגה או כל טכניקת הרפיה.'
+                ]
+            },
+            'parietal_cortex': {
+                name: 'קליפת המוח הפריאטלית (Parietal Lobe)',
+                functions: [
+                    'עיבוד מידע חושי – מגע, כאב, טמפרטורה ולחץ.',
+                    'תפיסה מרחבית וניווט.',
+                    'אינטגרציה של מידע חושי מורכב.',
+                    'מודעות גוף ומיקום במרחב.'
+                ],
+                damage: [
+                    'קושי בתפיסה מרחבית (לדוגמה, להתלבש, לנווט).',
+                    'הזנחת צד (Neglect) – חוסר מודעות לצד אחד של הגוף או המרחב.',
+                    'קושי בזיהוי אובייקטים באמצעות מגע (אסטרֵאוֹגנוֹזיס).',
+                    'בעיות בקואורדינציה עין-יד.',
+                    'קושי בעיבוד מספרים וחישובים.'
+                ],
+                tips: [
+                    'למידת שפות: משפרת את יכולת המוח לעבד מידע ולהתאים את עצמו.',
+                    'נגינה בכלי: משלבת תנועה, שמיעה ומגע ומעשירה קשרים עצביים.',
+                    'פעילויות יצירתיות: ציור, פיסול, עבודות יד.',
+                    'משחקי חשיבה: משחקי קופסה, פאזלים, חידות.'
+                ]
+            },
+            'temporal_cortex': {
+                name: 'קליפת המוח הרקתית (Temporal Lobe)',
+                functions: [
+                    'עיבוד שמיעה והבנת שפה (אזור ורניקה).',
+                    'זיכרון – בעיקר זיכרון ארוך טווח (קשור להיפוקמפוס).',
+                    'זיהוי פנים ואובייקטים.',
+                    'עיבוד רגשות (קשור לאמיגדלה).'
+                ],
+                damage: [
+                    'בעיות שמיעה או הבנת דיבור (אפאזיה רצפטיבית).',
+                    'הפרעות זיכרון (קושי ביצירת זיכרונות חדשים או שליפת ישנים).',
+                    'קושי בזיהוי פנים (פרוסופאגנוזיה).',
+                    'שינויים התנהגותיים או רגשיים.'
+                ],
+                tips: [
+                    'שינה איכותית: חיונית לגיבוש זיכרונות.',
+                    'קריאה ולימוד: מרחיבים את אוצר המילים ומשפרים הבנה שפתית.',
+                    'האזנה למוזיקה: מעוררת אזורים שמיעתיים ורגשיים במוח.',
+                    'אינטראקציה חברתית: משפרת מיומנויות תקשורת והבנה חברתית.'
+                ]
+            },
+            'occipital_cortex': {
+                name: 'קליפת המוח העורפית (Occipital Lobe)',
+                functions: [
+                    'עיבוד מידע ראייתי – מה שאנו רואים.',
+                    'זיהוי צבעים, צורות ותנועה.',
+                    'פרשנות תמונות וגירויים חזותיים.'
+                ],
+                damage: [
+                    'פגיעה בראייה (עיוורון קורטיקלי, שדות ראייה חלקיים).',
+                    'קושי בזיהוי אובייקטים או צבעים.',
+                    'הזיות ראייה.'
+                ],
+                tips: [
+                    'הגנה על העיניים: שימוש במשקפי שמש, הפחתת זמן מסך.',
+                    'תזונה עשירה בנוגדי חמצון: ירקות ירוקים, פירות יער.',
+                    'חידות חזותיות: זיהוי תבניות, משחקי "מצא את ההבדלים".'
+                ]
+            },
+            'cerebellum': {
+                name: 'המוחון (Cerebellum)',
+                functions: [
+                    'קואורדינציה ותיאום תנועות שרירים (תנועות עדינות וגסות).',
+                    'שמירה על שיווי משקל ויציבה.',
+                    'למידה מוטורית (למשל, רכיבה על אופניים).',
+                    'ייתכן תפקיד גם בקוגניציה ורגשות.'
+                ],
+                damage: [
+                    'בעיות באיזון וקואורדינציה (אטקסיה).',
+                    'רעידות (טרמור) בתנועה.',
+                    'קושי בביצוע תנועות מהירות ומדויקות.',
+                    'הפרעות בדיבור (דיסארתריה).'
+                ],
+                tips: [
+                    'יוגה ופילאטיס: משפרים איזון, גמישות וקואורדינציה.',
+                    'פעילויות קואורדינציה: ריקוד, משחקי כדור, אומנויות לחימה.',
+                    'תרגול תנועות עדינות: סריגה, ציור, פיסול.'
+                ]
+            },
+            'brainstem': {
+                name: 'גזע המוח (Brainstem)',
+                functions: [
+                    'שליטה בתפקודי חיים בסיסיים והכרחיים: נשימה, קצב לב, לחץ דם, בליעה.',
+                    'מצב ערנות ושינה.',
+                    'ממסר מידע בין המוח הגדול, המוחון וחוט השדרה.',
+                    'שליטה בתנועות עיניים, פנים וצוואר.'
+                ],
+                damage: [
+                    'הפרעות נשימה וקצב לב מסכנות חיים.',
+                    'אובדן הכרה או תרדמת.',
+                    'שיתוק.',
+                    'קושי בבליעה ובדיבור.',
+                    'בעיות בוויסות טמפרטורת הגוף.'
+                ],
+                tips: [
+                    'הפחתת מתח: טכניקות נשימה, מדיטציה, סביבה רגועה.',
+                    'שינה מספקת ואיכותית: חיונית לתפקודי גזע המוח.',
+                    'הימנעות מעישון ואלכוהול מוגזם: משפיעים לרעה על מערכת העצבים המרכזית.',
+                    'תזונה בריאה:
