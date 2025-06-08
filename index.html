@@ -263,7 +263,7 @@
 
         <div class="sidebar">
             <div class="instruction-card">
-                <h3>הוראות שימוש</h3>
+                <h3>הוראות שימוש למשתמש באפליקציה</h3>
                 <p><strong>לחץ</strong> על אזור במוח לקבלת מידע מפורט</p>
                 <p><strong>גרור</strong> לסיבוב המודל תלת-המימדי</p>
                 <p><strong>גלגל עכבר</strong> לזום פנימה/החוצה</p>
@@ -445,4 +445,378 @@
                     'הפחתת מתח: טכניקות נשימה, מדיטציה, סביבה רגועה.',
                     'שינה מספקת ואיכותית: חיונית לתפקודי גזע המוח.',
                     'הימנעות מעישון ואלכוהול מוגזם: משפיעים לרעה על מערכת העצבים המרכזית.',
-                    'תזונה בריאה:
+                    'תזונה בריאה: תומכת בתפקודים נוירולוגיים כלליים.'
+                ]
+            },
+            'corpus_callosum': {
+                name: 'קורפוס קלוסום (Corpus Callosum)',
+                functions: [
+                    'גשר תקשורת עיקרי: מכלול של כ-200-250 מיליון סיבי עצב המחברים בין שתי המיספרות המוח (שמאל וימין).',
+                    'מאפשר העברת מידע מהירה ואינטגרציה קוגניטיבית בין ההמיספרות.',
+                    'חיוני לתפקודים קוגניטיביים מורכבים הדורשים תיאום בין צדי המוח.'
+                ],
+                damage: [
+                    // נשאיר ריק כרגע או נשלים בהמשך
+                ],
+                tips: [
+                    // נשאיר ריק כרגע או נשלים בהמשך
+                ]
+            }
+        };
+
+        // Three.js setup variables (scene, camera, renderer, etc.)
+        let controls;
+        let brainLoaded = false;
+        let meshUrl = 'brain_model.glb'; // Make sure this path is correct if you have a GLB model
+        let clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); // Default to axial cutting
+        const defaultClipPlanes = {
+            'sagittal': new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), // X-axis
+            'coronal': new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),   // Y-axis
+            'axial': new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)     // Z-axis
+        };
+
+        // Initialize Three.js scene
+        function init() {
+            const viewerContainer = document.getElementById('viewer-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x16213e); // Dark blue/purple background
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, viewerContainer.clientWidth / viewerContainer.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 150); // Adjust camera position for better view
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(viewerContainer.clientWidth, viewerContainer.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            viewerContainer.appendChild(renderer.domElement);
+            renderer.localClippingEnabled = true; // Enable local clipping
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight1.position.set(1, 1, 1).normalize();
+            scene.add(directionalLight1);
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight2.position.set(-1, -1, -1).normalize();
+            scene.add(directionalLight2);
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // For a smoother experience
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 50;
+            controls.maxDistance = 300;
+
+            // Raycaster and Mouse for interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Add event listener for mouse clicks
+            renderer.domElement.addEventListener('click', onCanvasClick);
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+
+            // Load the 3D model
+            loadBrainModel();
+            // Setup dropdown for regions
+            populateRegionDropdown();
+            // Load initial text content
+            loadNeuroTextContent();
+        }
+
+        // Load 3D Brain Model (replace with your actual model loading logic if different)
+        function loadBrainModel() {
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) loadingElement.style.display = 'block';
+
+            // Placeholder for brain mesh (replace with your actual 3D model loading)
+            // For now, we'll create a simple sphere as a placeholder
+            const brainGeometry = new THREE.SphereGeometry(50, 64, 64);
+            const brainMaterial = new THREE.MeshPhongMaterial({
+                color: 0x808080, // Greyish color for the brain
+                transparent: true,
+                opacity: 0.6,
+                shininess: 30,
+                specular: 0x555555,
+                clippingPlanes: [clipPlane], // Apply clipping plane
+                clipIntersection: true // Only show the intersection
+            });
+            brain = new THREE.Mesh(brainGeometry, brainMaterial);
+            scene.add(brain);
+
+            // Create a wireframe/outline for the brain
+            const brainOutlineGeometry = new THREE.SphereGeometry(50.5, 64, 64); // Slightly larger sphere
+            const brainOutlineMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff00, // Green outline
+                wireframe: true,
+                transparent: true,
+                opacity: 0.2
+            });
+            brainOutline = new THREE.Mesh(brainOutlineGeometry, brainOutlineMaterial);
+            scene.add(brainOutline); // Add outline to scene
+
+            // Simulate loading time
+            setTimeout(() => {
+                if (loadingElement) loadingElement.style.display = 'none';
+                brainLoaded = true;
+                animate(); // Start animation loop after model is "loaded"
+            }, 1500); // Simulate 1.5 seconds loading
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            if (isAnimating && brainLoaded && currentViewMode === '3d') {
+                brain.rotation.y += 0.005;
+                if (brainOutline) brainOutline.rotation.y += 0.005; // Rotate outline as well
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle canvas click for region selection
+        function onCanvasClick(event) {
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+            mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check for intersections
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            if (intersects.length > 0) {
+                const intersectedObject = intersects[0].object;
+
+                // Only highlight and show info if it's the main brain mesh (not the outline)
+                if (intersectedObject === brain) {
+                    // Remove highlight from previous region if any
+                    if (currentlyHighlightedRegion) {
+                        currentlyHighlightedRegion.material.emissive.setHex(0x000000); // Remove emissive color
+                    }
+
+                    // Highlight the current region
+                    const regionName = 'frontal_cortex'; // Placeholder: in a real model, you'd get this from the mesh data
+                    currentlyHighlightedRegion = intersectedObject;
+                    intersectedObject.material.emissive.setHex(0x00ff00); // Green highlight
+
+                    displayRegionInfo(regionName);
+                }
+            } else {
+                // Clicked outside any region, clear highlight and show general info
+                if (currentlyHighlightedRegion) {
+                    currentlyHighlightedRegion.material.emissive.setHex(0x000000);
+                    currentlyHighlightedRegion = null;
+                }
+                displayRegionInfo('welcome'); // Show welcome info or clear
+            }
+        }
+
+        // Display region information in the sidebar
+        function displayRegionInfo(regionKey) {
+            const regionInfoDiv = document.getElementById('regionInfo');
+            let htmlContent = '';
+
+            if (regionKey === 'welcome') {
+                htmlContent = `
+                    <div class="info-card">
+                        <h3>ברוכים הבאים לאפליקציית הנוירואנטומיה</h3>
+                        <p>אפליקציה זו מאפשרת לכם לחקור את המוח האנושי בצורה אינטראקטיבית.</p>
+                        <h4>תכונות עיקריות:</h4>
+                        <ul>
+                            <li>מודל תלת-מיממדי אינטראקטיבי של המוח</li>
+                            <li>זיהוי אזורים אנטומיים בלחיצה</li>
+                            <li>תצוגת חתכים בכל הכיוונים</li>
+                            <li>העלאת תמונות MRI אישיות</li>
+                            <li>מידע על תפקודים ופגיעות</li>
+                        </ul>
+                        <h4>איך להתחיל:</h4>
+                        <p>לחצו על כל אזור במוח כדי לקבל מידע מפורט עליו. השתמשו בבקרות העליונות כדי לשנות את מצב התצוגה או להעלות תמונות אישיות.</p>
+                    </div>
+                `;
+            } else if (brainAnatomyData[regionKey]) {
+                const data = brainAnatomyData[regionKey];
+                htmlContent = `
+                    <div class="info-card">
+                        <h3>${data.name}</h3>
+                        <h4>תפקודים עיקריים:</h4>
+                        <ul>
+                            ${data.functions.map(func => `<li>${func}</li>`).join('')}
+                        </ul>
+                        ${data.damage && data.damage.length > 0 ? `
+                        <h4>פגיעות אפשריות:</h4>
+                        <ul>
+                            ${data.damage.map(dmg => `<li>${dmg}</li>`).join('')}
+                        </ul>` : ''}
+                        ${data.tips && data.tips.length > 0 ? `
+                        <h4>טיפים לשמירה על בריאות האזור:</h4>
+                        <ul>
+                            ${data.tips.map(tip => `<li>${tip}</li>`).join('')}
+                        </ul>` : ''}
+                    </div>
+                `;
+            } else {
+                htmlContent = `<div class="info-card"><h3>מידע לא זמין</h3><p>אין מידע זמין עבור אזור זה. נסה/י לבחור אזור אחר.</p></div>`;
+            }
+
+            regionInfoDiv.innerHTML = htmlContent;
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            const viewerContainer = document.getElementById('viewer-container');
+            camera.aspect = viewerContainer.clientWidth / viewerContainer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(viewerContainer.clientWidth, viewerContainer.clientHeight);
+        }
+
+        // Reset view to initial state
+        function resetView() {
+            controls.reset();
+            if (isAnimating) {
+                toggleAnimation(); // Stop animation before resetting rotation
+            }
+            brain.rotation.set(0, 0, 0); // Reset brain rotation
+            if (brainOutline) brainOutline.rotation.set(0, 0, 0);
+        }
+
+        // Toggle animation (rotation)
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+        }
+
+        // Handle view mode change (3D, Sagittal, Coronal, Axial)
+        document.getElementById('viewMode').addEventListener('change', function(event) {
+            currentViewMode = event.target.value;
+            const sliceControls = document.getElementById('sliceControls');
+            const toggleBrainOutlineCheckbox = document.getElementById('toggleBrainOutline');
+
+            // Toggle visibility of slice controls
+            if (currentViewMode !== '3d') {
+                sliceControls.style.display = 'block';
+                // Set default clipping plane for the selected view mode
+                clipPlane = defaultClippingPlanes[currentViewMode].clone();
+                // Update material clipping planes
+                if (brain) {
+                    brain.material.clippingPlanes = [clipPlane];
+                    brain.material.needsUpdate = true;
+                }
+                // Hide brain outline in slice views
+                if (brainOutline) brainOutline.visible = false;
+                toggleBrainOutlineCheckbox.checked = false; // Uncheck the outline toggle
+            } else {
+                sliceControls.style.display = 'none';
+                // Remove clipping planes in 3D view
+                if (brain) {
+                    brain.material.clippingPlanes = [];
+                    brain.material.needsUpdate = true;
+                }
+                // Show brain outline in 3D view (if checkbox is checked)
+                if (brainOutline && toggleBrainOutlineCheckbox.checked) brainOutline.visible = true;
+            }
+        });
+
+        // Handle slice depth change
+        document.getElementById('sliceDepth').addEventListener('input', function(event) {
+            const value = event.target.value;
+            document.getElementById('sliceValue').innerText = value;
+            // Update clipping plane constant based on slider value
+            const normalizedValue = (value - 50) / 50 * 50; // Map 0-100 to -50 to 50
+            if (clipPlane) {
+                clipPlane.constant = normalizedValue;
+            }
+            if (brain) brain.material.needsUpdate = true; // Ensure material updates
+        });
+
+        // Toggle Brain Outline
+        document.getElementById('toggleBrainOutline').addEventListener('change', function(event) {
+            if (brainOutline) {
+                brainOutline.visible = event.target.checked;
+            }
+        });
+
+        // Handle Image Upload (Placeholder)
+        document.getElementById('imageUpload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Here you would process the uploaded MRI image (e.g., display it)
+                    console.log('MRI Image loaded:', e.target.result.substring(0, 50) + '...');
+                    alert('תמונת ה-MRI נטענה בהצלחה (פונקציונליות תצוגה עדיין בפיתוח).');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Populate region dropdown (for future use with specific brain regions)
+        function populateRegionDropdown() {
+            const dropdown = document.getElementById('selectRegionDropdown');
+            for (const key in brainAnatomyData) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = brainAnatomyData[key].name;
+                dropdown.appendChild(option);
+            }
+            dropdown.addEventListener('change', function(event) {
+                const selectedRegion = event.target.value;
+                if (selectedRegion) {
+                    displayRegionInfo(selectedRegion);
+                    // In a real 3D model, you'd also highlight the region here
+                    // For placeholder sphere, we'll just highlight it visually on click
+                    if (currentlyHighlightedRegion) {
+                        currentlyHighlightedRegion.material.emissive.setHex(0x000000); // Remove old highlight
+                    }
+                    if (brain) { // Assuming 'brain' is the main model
+                        brain.material.emissive.setHex(0x00ff00); // Apply highlight to the whole brain for now
+                        currentlyHighlightedRegion = brain;
+                    }
+                } else {
+                    displayRegionInfo('welcome');
+                    if (currentlyHighlightedRegion) {
+                        currentlyHighlightedRegion.material.emissive.setHex(0x000000);
+                        currentlyHighlightedRegion = null;
+                    }
+                }
+            });
+        }
+
+        // Function to load content from Neuro_1.txt
+        async function loadNeuroTextContent() {
+            try {
+                const response = await fetch('Neuro_1.txt');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const text = await response.text();
+                const targetElement = document.getElementById('neuroAppTextDisplay');
+                if (targetElement) {
+                    targetElement.innerHTML = `<h3>עדכונים מ-Neuro_1.txt:</h3><p>${text}</p>`;
+                } else {
+                    console.warn('Could not find element with ID neuroAppTextDisplay to display Neuro_1.txt content.');
+                }
+            } catch (error) {
+                console.error('Failed to load Neuro_1.txt:', error);
+                const targetElement = document.getElementById('neuroAppTextDisplay');
+                if (targetElement) {
+                    targetElement.innerHTML = '<h3>עדכונים מ-Neuro_1.txt:</h3><p>שגיאה בטעינת תוכן Neuro_1.txt. אנא ודא/י שהקובץ קיים ונגיש.</p>';
+                }
+            }
+        }
+
+        // Initialize the app when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            loadNeuroTextContent();
+        });
+
+    </script>
+</body>
+</html>
