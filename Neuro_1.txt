@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>אפליקציית נוירואנטומיה מאוד אינטראקטיבית</title>
+    <title>אפליקציית נוירואנטומיה אינטראקטיבית</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         * {
@@ -320,7 +320,7 @@
             'frontal_cortex': {
                 name: 'קליפת המוח המצחית (Frontal Lobe)',
                 functions: [
-                    'מרכז הפיקוד והשליטה של גלי בלאו – אחראית על תכנון, קבלת החלטות, פתרון בעיות וביצועים.',
+                    'מרכז הפיקוד והשליטה – אחראית על תכנון, קבלת החלטות, פתרון בעיות וביצועים.',
                     'בקרת תנועה (קליפת המוח המוטורית הראשונית).',
                     'שפה (אזור ברוקה - הפקת דיבור).',
                     'זיכרון עבודה ותשומת לב.',
