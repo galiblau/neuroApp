@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>האפליקציה הנוירונית שלי</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+            background-color: #f0f8ff;
+        }
+        h1 {
+            color: #2e8b57;
+        }
+        p {
+            color: #4682b4;
+        }
+    </style>
+</head>
+<body>
+    <h1>ברוכה הבאה לאפליקציית NeuroApp!</h1>
+    <p>זהו האתר הפשוט הראשון שלי, נפרסם אותו ב-GitHub Pages.</p>
+    <p>נשאר לעקוב אחרי השינויים ב-Neuro_1.txt.</p>
+</body>
+</html>
